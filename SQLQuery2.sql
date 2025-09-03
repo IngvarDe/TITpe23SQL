@@ -88,6 +88,53 @@ where Id = 7
 
 --lisada uus veerg Person tabelisse
 --veeru nimi on City nvarchar(50)
+alter table Person
+add City nvarchar(50)
 
+--kõik, kes elavad Gothami linnas
+select * from Person where City = 'Gotham'
+-- kõik, kes ei ela Gothamis
+select * from Person where City <> 'Gotham'
+-- kõik, kes ei ela Gothamis, variant nr 2. Tee ise
+select * from Person where City != 'Gotham'
 
+-- näitab teatud vanusega inimesi
+select * from Person where Age = 40 or Age = 154 or Age = 21
+select * from Person where Age in (154, 40, 21)
+
+-- näitab teatud vanusevahemikus olevaid inimesi
+select * from Person where Age between 22 and 41
+
+-- wildcardi e näitab kõik g-tähega linnad
+select * from Person where City like 'n%'
+
+--otsida emailid, kus on olemas @-märk
+select * from Person where Email like '%@%'
+
+-- näitab kõiki, kellel ei ole @-märki emailis
+select * from Person where Email not like '%@%'
+
+--näitab, kellel on emailis ees ja peale @-märki ainult üks täht
+select * from Person where Email like '_@_.com'
+
+--k]ik, kellel nimes ei ole esimene täht W, A, S
+select * from Person where Email like '[^WAS]%'
+
+-- kes elavad Gothamis ja New Yorkis
+select * from Person where (City = 'Gotham' or City = 'New York')
+
+--- kõik, kes elavad Gothamis ja New Yorkis ning on vanemad, kui 29a
+select * from Person where (City = 'Gotham' or City = 'New York')
+and Age >= 30
+
+--- kuvab tähestikulises järjekorras inimesi ja võtab aluseks nime
+select * from Person order by Name
+-- kuvab vastupidises järjestuses
+select * from Person order by Name desc
+
+--võtab kolm esimest rida
+select top 3 * from Person
+
+-- rida 128
+-- 03.09.2025
 
