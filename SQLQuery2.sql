@@ -135,6 +135,8 @@ select * from Person order by Name desc
 --võtab kolm esimest rida
 select top 3 * from Person
 
--- rida 128
+-- rida 131
 -- 03.09.2025
+-- tund 2
+
 
