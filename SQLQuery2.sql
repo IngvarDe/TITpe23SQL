@@ -276,4 +276,173 @@ add City nvarchar(30)
 
 -- rida 257
 --tund 3
+--10.09.2025
+select* from Employees
 
+select City, Gender, sum(cast(Salary as int)) as TotalSalary 
+from Employees 
+group by City, Gender
+--tahame ainult Employees tabelist näha City ja Gender veergu
+
+--sama nagu eelmine, aga linnad tähestikulises järjestuses
+select City, Gender, sum(cast(Salary as int)) as TotalSalary 
+from Employees 
+group by City, Gender
+order by City
+
+--loeb ära, et mitu rida on tabelis
+select count(*) from Employees
+
+--teil tuleb teada saada, et mitu töötajat on soo ja linna kaupa
+select Gender, City, sum(cast(Salary as int)) as TotalSalary,
+count (Id) as [Total Employee(s)]
+from Employees
+group by Gender, City
+
+--kuvab ainult kõik mehede linnade
+select Gender, City, sum(cast(Salary as int)) as TotalSalary,
+count (Id) as [Total Employees(s)]
+from Employees
+where Gender = 'Female'
+group by Gender, City
+
+select Gender, City, sum(cast(Salary as int)) as TotalSalary,
+count (Id) as [Total Employees(s)]
+from Employees
+group by Gender, City
+having Gender = 'Female'
+
+select * from Employees where sum(cast(Salary as int)) > 4000
+-- k]igil, kellel on palk [le 4000 ja arvutab need kokku ning n'itab soo kaupa
+--kasutada having-t
+select Gender, City, sum(cast(Salary as int)) as TotalSalary,
+count (Id) as [Total Employees(s)]
+from Employees
+group by Gender, City
+having sum(cast(Salary as int)) > 4000
+
+--loome tabeli, milles hakatakse automaatselt nummerdama id-d
+create table Test1
+(
+Id int identity(1,1),
+Value nvarchar(20)
+)
+
+insert into Test1 values('X')
+select * from Test1
+
+-- kustutame veeru nimega City Employees tabelis
+alter table Employees
+drop column City
+
+--- inner join
+--- kuvab neid, kellel on DepartmentName all olemas v''rtus
+--- kasutada Department ja Employees
+select Name, Gender, Salary, DepartmentName
+from Employees
+inner join Department
+on Employees.DepartmentId = Department.Id
+
+--left join
+--kuidas saada k]ik andmed Employee-st k'tte
+select Name, Gender, Salary, DepartmentName
+from Employees
+left join Department  -- võib kasutada ka LEFT OUTER JOIN-i
+on Employees.DepartmentId = Department.Id
+
+-- right join
+select Name, Gender, Salary, DepartmentName
+from Employees
+right join Department  -- võib kasutada ka RIGHT OUTER JOIN-i
+on Employees.DepartmentId = Department.Id
+
+--outer join
+select Name, Gender, Salary, DepartmentName
+from Employees
+full outer join Department  -- võib kasutada ka RIGHT OUTER JOIN-i
+on Employees.DepartmentId = Department.Id
+
+--p'ringu sisu
+--select ColumnList
+--from LeftTable
+--joinType RightTable
+--on JoinCondition e võõrvõti ja primaarvõti ühendatakse ära
+
+--inner join
+select Name, Gender, Salary, DepartmentName
+from Employees
+inner join Department
+on Employees.DepartmentId = Department.Id
+
+--kasutada left joini ja kuidas saada teada, et kellel on DepartmentName NULL
+select Name, Gender, Salary, DepartmentName
+from Employees
+left join Department
+on Employees.DepartmentId = Department.Id
+where Employees.DepartmentId is null
+
+--teine variant
+select Name, Gender, Salary, DepartmentName
+from Employees
+left join Department
+on Employees.DepartmentId = Department.Id
+where Department.Id is null
+
+--kuidas saame Department tabelis oleva rea, kus on NULL
+--right join
+select Name, Gender, Salary, DepartmentName
+from Employees
+right join Department
+on Employees.DepartmentId = Department.Id
+where Employees.DepartmentId is null
+
+--full join
+--mõlema tabeli mitte-kattuvate väärtustega read kuvab välja
+select Name, Gender, Salary, DepartmentName
+from Employees
+full join Department
+on Employees.DepartmentId = Department.Id
+where Employees.DepartmentId is null
+or Department.Id is null
+
+select * from Department
+
+--saame muuta tabeli nimetust, alguses vana tabeli nimi ja siis uus soovitud
+sp_rename 'Department1' , 'Department'
+
+--kasutame Employees tabeli asemel lühendit E ja M
+select E.Name as Employee, M.Name as Manager
+from Employees E
+left join Employees M
+on E.ManagerId = M.Id
+
+--teha veerg ja nimeks ManagerId ning andmetüüp on int
+alter table Employees
+add ManagerId int
+
+--inner join
+--kuvab ainult managerId all olevate isikute väärtused
+select E.Name as Employee, M.Name as Manager
+from Employees E
+inner join Employees M
+on E.ManagerId = M.Id
+
+--kõik saavad kõikide ülemused olla
+select E.Name as Employee, M.Name as Manager
+from Employees E
+cross join Employees M
+
+select isnull('Asd', 'No Manager') as Manager
+
+--NULL asemel kuvab No Manager
+select coalesce(NULL, 'No Manager') as Manager
+
+--neil kellel ei ole ülemust, siis paneb neile No Manager teksti
+select E.Name as Employee, isnull(M.Name, 'No Manager') as Manager
+from Employees E
+left join Employees M
+on E.ManagerId = M.Id
+
+--rida 428
+--4 tund
+--11.09.2025
