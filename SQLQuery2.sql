@@ -579,7 +579,117 @@ end
 --miks ei lähe see sp tööle
 --nõuab Gender parameetrit
 spGetEmployeesByGenderAndDepartment
-
 --õige variant
+spGetEmployeesByGenderAndDepartment 'Male', 1
+--- niimoodi saab sp tahetud järjekorrast mööda minna, kui ise paned muutujad paika
+spGetEmployeesByGenderAndDepartment @DepartmentId = 1, @Gender = 'Male'
 
+--saab sp sisu vaadata result-i vaates
+sp_helptext spGetEmployeesByGenderAndDepartment
+
+-- kuidas muuta sp-d ja võti peale panna, et keegi teine peale teie ei saaks muuta
+alter proc spGetEmployeesByGenderAndDepartment
+@Gender nvarchar(20),
+@DepartmentId int
+with encryption -- paneb võtme peale
+as begin
+	select FirstName, Gender, DepartmentId from Employees where Gender = @Gender
+	and DepartmentId = @DepartmentId
+end
+
+-- teeme sp, kus loendab töötajad ära läbi Id ja liigitab soo kaupa ära
+create proc spGetEmployeeCountByGender
+@Gender nvarchar(20),
+@EmployeeCount int output
+as begin
+	select @EmployeeCount = count(Id) from Employees where Gender = @Gender
+end
+-- uus p'ring
+declare @TotalCount int
+execute spGetEmployeeCountByGender 'asd', @TotalCount out
+if(@TotalCount = 0)
+	print 'TotalCount is null'
+else
+	print '@TotalCount is not null'
+print @TotalCount
+
+--n'itab ära, et mitu rida vastab nõuetele
+declare @TotalCount int
+execute spGetEmployeeCountByGender @EmployeeCount = @TotalCount out, @Gender = 'Male'
+print @TotalCount
+
+-- sp sisu vaatamine
+sp_help spGetEmployeeCountByGender
+--tabeli info
+sp_help Employees
+-- kui soovid sp helptexti n'ha
+sp_helptext spGetEmployeeCountByGender
+
+-- vaatame, millest sp s]ltub
+sp_depends spGetEmployeeCountByGender
+--vaatame tabeli sõltuvust
+sp_depends Employees
+
+-- sp mille muutujateks on Id ja Name nvarchar(20) output
+create proc spGetNameById
+@Id int,
+@Name nvarchar(20) output
+as begin
+	select @Id = Id, @Name = FirstName from Employees
+end
+
+--annab kogu tabeli ridade arvu
+create proc spTotalCount2
+@TotalCount int output
+as begin
+	select @TotalCount = count(Id) from Employees
+end
+
+--saame teada, et mitu rida andmeid on tabelis
+declare @TotalEmployees int
+execute spTotalCount2 @TotalEmployees output
+select @TotalEmployees
+
+--mis id all on keegi nime j'rgi
+create proc spGetNameById1
+@Id int,
+@FirstName nvarchar(50) output
+as begin
+	select @FirstName = FirstName from Employees where Id = @Id
+end
+-- annab tulemuse, kus id real nr 1 on keegi koos nimega
+declare @FirstName nvarchar(50)
+execute spGetNameById1 4, @FirstName output
+print 'Name of the employee = ' + @FirstName
+-- 
+declare @FirstName nvarchar(2)
+execute spGetNameById1 4, @FirstName output
+print 'Name  = ' + @FirstName
+
+sp_help spGetNameById
+--
+create proc spGetNameById2
+@Id int
+as begin
+	return (select FirstName from Employees where Id = @Id)
+end
+--tuleb veateade kuna kutsusime välja int-i, aga Pam on string
+declare @EmployeeName nvarchar(50)
+execute @EmployeeName = spGetNameById2 2
+print 'Name of the employee = ' + @EmployeeName
+
+--sisseehitatud string funktsioonid
+--see konverteerib ASCII tähe väärtuse numbriks
+select ascii('a')
+
+--prindime kogu tähestiku välja
+declare @Start int
+set @Start = 97
+while (@Start <= 122)
+begin
+	select char (@Start)
+	set @Start = @Start + 1
+end
+
+--rida 699
 
