@@ -692,4 +692,96 @@ begin
 end
 
 --rida 699
+-- 5 tund
+--18.09.2025
+
+--eemaldame tühjad kohad sulgudes vasakul pool
+select ltrim('        Hello')
+--paremalt poolt
+select RTRIM('        Hello      ')
+--tühikute eemaldamine veerust
+
+select * from Employees
+
+--teha p'ring Employee tabeli vastu ja tahan näha Eesnime, Keskmistnime ja perekonnanime.
+--Eesnimel ei oleks tühikuid ees
+select ltrim(FirstName) as FirstName, MiddleName, LastName from Employees
+
+-- keerab kooloni sees olevad andmed vastupidiseks
+-- vastavalt upper ja lower-ga saan muuta märkide suurust
+-- reverse funktsioon pöörab kõik ümber
+select REVERSE(upper(ltrim(FirstName))) as FirstName, MiddleName, lower(LastName),
+RTRIM(LTRIM(FirstName)) + ' ' + MiddleName + ' ' + LastName as FullName
+from Employees
+
+--näeb, mitu tähte on sõnal ja loeb tühikud sisse
+select FirstName, len(FirstName) as [Total Characters] from Employees
+--n'eb, mitu tähte on sõnal ja ei loe tühikuid sisse
+select FirstName, len(ltrim(FirstName)) as [Total Characters] from Employees
+
+---left, right, substring
+-- vasakult poolt neli esimest tähte
+select left('ABCDEF', 4)
+--paremalt poolt kolm t'hte
+select right('ABCDEF', 3)
+
+--kuvab @-tähemärgi asetust
+select CHARINDEX('@', 'sara@aaa.com')
+
+--esimene nr peale komakohta n'itab, et mitmendast alustab ja siis mitu nr peale seda kuvada
+select SUBSTRING('pam@bbb.com', 5, 2)
+
+-- @-märgist kuvab kolm tähemärki. Viimase nr saab määrata pikkust
+select substring('pam@bbb.com', CHARINDEX('@', 'pam@bbb.com') + 1, 3)
+
+--- peale @-m'rki reguleerin tähemärkide pikkuse näitamist
+select SUBSTRING('pam@bbb.com', CHARINDEX('@', 'pam@bbb.com') + 2,
+len('pam@bbb.com') - charindex('@', 'pam@bbb.com'))
+
+-- saame teada domeeninimed emailides
+select SUBSTRING(Email, charindex('@', Email) + 1,
+len (Email) - CHARINDEX('@', Email)) as EmailDomain
+from Employees
+
+alter table Employees
+add Email nvarchar(20)
+
+update Employees set Email = 'Tom@aaa.com' where Id = 1
+update Employees set Email = 'Pam@bbb.com' where Id = 2
+update Employees set Email = 'John@aaa.com' where Id = 3
+update Employees set Email = 'Sam@bbb.com' where Id = 4
+update Employees set Email = 'Todd@bbb.com' where Id = 5
+update Employees set Email = 'Ben@ccc.com' where Id = 6
+update Employees set Email = 'Sara@ccc.com' where Id = 7
+update Employees set Email = 'Valarie@aaa.com' where Id = 8
+update Employees set Email = 'James@bbb.com' where Id = 9
+update Employees set Email = 'Russel@bbb.com' where Id = 10
+
+--lisame *-märgiga teatud kohast
+select FirstName, LastName,
+	substring(Email, 1, 2) + REPLICATE('*', 5) + --peale teist m'rki paneb viis tärni
+	substring(Email, CHARINDEX('@', Email), len(Email) - CHARINDEX('@', Email) + 1) as Email
+from Employees
+
+--kolm korda näitab strinfgis olevat väärtust
+select REPLICATE('asd', 3)
+
+--kuidas sisestada tühikut kahe nime vahele
+select space(5)
+
+--tühikute arv peab olema 25 eesnime ja perekonnanime vahel
+--need kaks muutujat tuleb panna ühte veergu FullName veerunime all
+--andmed tuleb võtta Employee tabelist
+select FirstName + space(25) + LastName as FullName
+from Employees
+
+--PATINDEX
+--sama, mis CHARINDEX, aga dünaamilisem ja saab kasutada wildcardi
+select Email, PATINDEX('%@aaa.com', Email) as FirstOccurence
+from Employees
+where PATINDEX('%@aaa.com', Email) > 0
+
+--kõik .com-d asendatakse .net-ga
+--Employee tabeli vastu peab päringu tegema
+
 
