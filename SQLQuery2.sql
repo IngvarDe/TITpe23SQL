@@ -783,5 +783,57 @@ where PATINDEX('%@aaa.com', Email) > 0
 
 --kõik .com-d asendatakse .net-ga
 --Employee tabeli vastu peab päringu tegema
+select Email, replace(Email, '.com', '.net') as ConvertedEmail
+from Employees
+
+--soovin asendada peale esimest märki kolm tähte viie tärniga
+--kasutada stuff
+select FirstName, LastName, Email,
+	stuff(Email, 2, 3, '*****') as StuffedEmail
+from Employees
+
+-- datetime tabel
+create table DateTime
+(
+c_time time,
+c_date date,
+c_smalldatetime smalldatetime,
+c_datetime datetime,
+c_datetime2 datetime2,
+c_datetimeoffset datetimeoffset
+)
+
+--masina kellaaeg
+select GETDATE(), 'GETDATE()'
+
+insert into DateTime
+values (getdate(), getdate(), getdate(), getdate(), getdate(), getdate())
+
+select * from DateTime
+
+update DateTime set c_datetimeoffset = '2025-09-18 18:52:26.0400000 +01:00'
+where c_datetimeoffset = '2025-09-18 18:52:26.0400000 +00:00'
+
+select CURRENT_TIMESTAMP, 'CURRENT_TIMESTAMP' --aja p'ring
+select SYSDATETIME(), 'SYSDATETIME()' --veel t'psem aja p'ring
+select SYSDATETIMEOFFSET(), 'SYSDATETIMEOFFSET()' -- täpne aeg koos ajalise nihkega UTC suhtes
+select GETUTCDATE(), 'GETUTCDATE()' --UTC aeg
 
 
+select ISDATE('asd')  --tagastab 0 kuna string ei ole date
+select ISDATE(getdate()) --tagastab 1 kuna on kp
+select isdate('2025-09-18 18:52:26.04000000')-- tagastab o kuna max kolm komakohta võib olla
+select isdate('2025-09-18 18:52:26.040') --tagastab 1
+select day(getdate()) --annab jooksva kuupäeva nr
+select day('01/22/2017') --annab stringis oleva kp ja j'rjestus peab olema õige
+select month(getdate()) --annab jooksva kuu nr
+select month('01/22/2017') --annab stringis oleva kuu ja j'rjestus peab olema õige
+select year(getdate()) --annab jooksva kuu nr
+select year('01/22/2017') --annab stringis oleva kuu ja j'rjestus peab olema õige
+
+select datename(day, '2025-09-18 18:52:26.040') --annab stringis oleva p'eva nr
+select datename(weekday, '2025-09-18 18:52:26.040') --annab stringis oleva päeva sõnana
+select datename(Month, '2025-09-18 18:52:26.040') --annab stringis oleva kuu sõnana
+
+---rida 845
+--6 tund
