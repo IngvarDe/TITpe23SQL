@@ -836,4 +836,161 @@ select datename(weekday, '2025-09-18 18:52:26.040') --annab stringis oleva päeva
 select datename(Month, '2025-09-18 18:52:26.040') --annab stringis oleva kuu sõnana
 
 ---rida 845
---6 tund
+-- 6 tund
+-- 24.09.2025
+
+create table EmployeesWithDates
+(
+Id nvarchar(2),
+Name nvarchar(20),
+DateOfBirth datetime
+)
+
+INSERT INTO EmployeesWithDates  (Id, Name, DateOfBirth)  
+VALUES (1, 'Sam', '1980-12-30 00:00:00.000');
+INSERT INTO EmployeesWithDates  (Id, Name, DateOfBirth)  
+VALUES (2, 'Pam', '1982-09-01 12:02:36.260');
+INSERT INTO EmployeesWithDates  (Id, Name, DateOfBirth)  
+VALUES (3, 'John', '1985-08-22 12:03:30.370');
+INSERT INTO EmployeesWithDates  (Id, Name, DateOfBirth)  
+VALUES (4, 'Sara', '1979-11-29 12:59:30.670');
+
+select * from EmployeesWithDates
+
+-- kuidas võtta ühest veerust andmeid ja selle abil luua uued veerud
+select Name, DateOfBirth, DATENAME(WEEKDAY, DateOfBirth) as [Day],
+	   MONTH(DateOfBirth) as MonthNumber,
+	   DATENAME(MONTH, DateOfBirth) as [MonthName],
+	   YEAR(DateOfBirth) as [Year]
+from EmployeesWithDates
+
+select DATEPART(WEEKDAY, '2025-09-20 12:59:30.670')-- kuvab 7 kuna USA nädal algab pühapäevaga
+select DATEPART(month, '2025-09-20 12:59:30.670')  --kuvab kuu nr
+select DATEADD(day, 20, '2025-09-20 12:59:30.670')  --liidab stringis olevale kp 20 päeva juurde
+select DATEADD(day, -20, '2025-09-20 12:59:30.670')  --lahutab -20 päeva
+select DATEDIFF(MONTH, '11/30/2025', '01/31/2025')  --kuvab kahe stringi kuudevahelise aega nr-na
+select DATEDIFF(YEAR, '11/30/2020', '01/31/2025') --kuvab kahe stringi aastavahelist aega nr-na
+
+create function fnComputeAge(@DOB datetime)
+returns nvarchar(50)
+as begin
+	declare @tempdate datetime, @years int, @months int, @days int
+	select @tempdate = @DOB
+
+	select @years = DATEDIFF(year, @tempdate, getdate()) - case when (MONTH(@DOB) > MONTH(getdate())) or (month(@DOB)
+	= month(getdate()) and day(@DOB) > day(GETDATE())) then 1 else 0 end
+	select @tempdate = dateadd(year, @years, @tempdate)
+
+	select @months = datediff(MONTH, @tempdate, GETDATE()) - case when day(@DOB) > DAY(GETDATE()) then 1 else 0 end
+	select @tempdate = DATEADD(MONTH, @months, @tempdate)
+
+	select @days = DATEDIFF(day, @tempdate, getdate())
+
+	declare @Age nvarchar(50)
+		set @Age = cast(@years as nvarchar(4)) + ' Years ' + cast(@months as nvarchar(2)) + ' Months ' 
+		+ cast(@days as nvarchar(2)) + ' days old'
+	return @Age
+end
+
+--saame vaadata kasutajate vanust
+select Id, Name, DateOfBirth, dbo.fnComputeAge(DateOfBirth) as Age from EmployeesWithDates
+
+select dbo.fnComputeAge('11/11/2020')
+
+--nr peale DOB muutujat n'itab, et mismoodi kuvada DOB-d
+select Id, Name, DateOfBirth,
+convert(nvarchar, DateOfBirth, 110) as ConvertedDOB
+from EmployeesWithDates
+
+select Id, Name, Name + ' - ' + cast(Id as nvarchar) as [Name-Id] from EmployeesWithDates
+
+select cast(GETDATE() as date) -- tänane kp
+select convert(date, getdate()) -- tänane kp
+
+select abs(-101.5) ---abs on absoluutne nr ja tulemuseks saame ilma miinus m'rgita tulemuse
+select ceiling(15.2)---tagastab 16 ja suurendab suurema täisarvu suunas
+select ceiling(-15.2)---tagastab -15 ja suurendab suurema positiivse täisarvu suunas
+select floor(15.2)--- ümardab negatiivsema nr poole
+select floor(-15.2) --- ümardab negatiivsema nr poole
+select POWER(2, 4) -- hakkab korrutama 2x2x2x2, esimene nr on korrutatav
+select SQUARE(9) -- antud juhul 9 ruudus
+select sqrt(81) -- annab vastuse 9, ruutjuur
+
+select rand() --annab suvaliuse nr
+select floor(rand()* 100)  --- korrutab sajaga iga suvalisue nr
+
+--iga kord näitab 10 suvalist nr-t
+declare @counter int
+set @counter = 1
+while (@counter <= 10)
+	begin
+		print floor(rand() * 1000)
+		set @counter = @counter + 1
+	end
+
+select ROUND(850.556, 2)	-- ümardab kaks kohta peale komat, tulemus 850.560
+select ROUND(850.556, 2, 1)	-- ümardab allapoole, tulemus 850.550
+select ROUND(850.556, 1)	-- ümardab ülespoole ja võtab ainult esimest nr peale koma arvesse 850.600 
+select ROUND(850.556, 1, 1)	-- ümardab allapoole
+select ROUND(850.556, -2)	-- ümardab täisnr ülesse
+select ROUND(850.556, -1)	-- ümardab täisnr allapoole
+
+--create function
+create function dbo.CalculateAge(@DOB date)
+returns int
+as begin
+declare @Age int
+
+set @Age = DATEDIFF(year, @DOB, GETDATE()) -
+	case
+		when (MONTH(@DOB) > MONTH(GETDATE())) or
+			 (MONTH(@DOB) > MONTH(GETDATE()) and day(@DOB) > day(getdate()))
+		then 1
+		else 0 
+		end
+	return @Age
+end
+
+execute dbo.CalculateAge '10/08/2020'
+
+--arvutab välja, kui vana on isik ja võtab arvesse kuud ja päevad
+--antud juhul näitab kõike, kes on üle 36 a vanad
+select Id, dbo.CalculateAge(DateOfBirth) as Age from EmployeesWithDates
+where dbo.CalculateAge(DateOfBirth) > 36
+
+-- inline table valued functions
+alter table EmployeesWithDates
+add DepartmentId int
+alter table EmployeesWithDates
+add Gender nvarchar(10)
+
+update EmployeesWithDates set Gender = 'Male', DepartmentId = 1
+where Id = 1
+update EmployeesWithDates set Gender = 'Female', DepartmentId = 2
+where Id = 2
+update EmployeesWithDates set Gender = 'Male', DepartmentId = 1
+where Id = 3
+update EmployeesWithDates set Gender = 'Female', DepartmentId = 3
+where Id = 4
+insert into EmployeesWithDates (Id, Name, DateOfBirth, DepartmentId, Gender)
+values (5, 'Todd', '1978-11-29 12:59:30.670', 1, 'Male')
+
+select * from EmployeesWithDates
+
+-- scalare function annab mingis vahemikus olevaid andmeid, aga
+-- inline table values ei kasuta begin ja end funktsioone
+-- scalar annab väärtused ja inline annab tabeli 
+create function fn_EmployeesByGender(@Gender nvarchar(10))
+returns table
+as
+return (select Id, Name, DateOfBirth, DepartmentId, Gender
+		from EmployeesWithDates
+		where Gender = @Gender)
+
+--kõik female töötajad
+select * from fn_EmployeesByGender('Female')
+
+select * from fn_EmployeesByGender('Female')
+where Name = 'Pam'
+
+-- rida 1007
