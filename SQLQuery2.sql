@@ -1339,6 +1339,244 @@ select * from EmployeeFirstName
 
 --rida 1358
 -- 8 tund
+-- 01.10.2025
 
+--view
 
+--view on salvestatud SQL-i päring. Saab käsitleda ka virtuaalse tabelina
+
+select FirstName, Salary, Gender, DepartmentName
+from Employees
+join Department
+on Employees.DepartmentId = Department.Id
+
+--loome view
+create view vEmployeesByDepartment
+as
+select FirstName, Salary, Gender, DepartmentName
+from Employees
+join Department
+on Employees.DepartmentId = Department.Id
+
+--view p'ringu esile kutsumine
+select * from vEmployeesByDepartment
+
+-- view ei salvesta andmeid vaikimisi
+-- seda tasub võtta, kui salvestatud virtuaalse tabelina
+
+-- milleks vaja:
+-- saab kasutada andmebaasi skeemi keerukuse lihtsutamiseks,
+-- mitte IT-inimesele
+-- piiratud ligipääs andmetele, ei näe kõiki veerge
+
+--teha veerg, kus näeb ainult IT-töötajaid
+--see peab olema view ja kasutama joini
+-- view nimi on vITEmployeesInDepartment
+alter view vITEmployeesInDepartment
+as
+select FirstName, DepartmentName
+from Employees
+join Department
+on Employees.DepartmentId = Department.Id
+where Department.DepartmentName = 'IT'
+-- ülevalpool olevat päringut saab liigitada reataseme turvalisuse alla
+-- tahan ainult näidata IT osakonna töötajaid
+
+select * from vITEmployeesInDepartment
+
+--saab kasutada esitlemaks koondandmeid ja üksikasjalike andmeid
+--view, mis tagastab summeeritud andmeid
+create view vEmployeesCountByDepartment
+as
+select DepartmentName, count(Employees.Id) as TotalEmployees
+from Employees
+join Department
+on Employees.DepartmentId = Department.Id
+group by DepartmentName
+
+select * from vEmployeesCountByDepartment
+
+--kui soovid vaadata view sisu
+sp_helptext vEmployeesCountByDepartment
+
+--muuta 
+alter view ViewNimi
+--kustutada
+drop view vEmployeesCountByDepartment
+
+--view uuendused
+--kas läbi view saab uuendada andmeid??
+
+--teeme andmete uuenduse, aga enne tuleb teha view
+create view vEmployeesDataExceptSalary
+as
+select Id, FirstName, Gender, DepartmentId
+from Employees
+
+--muudame Tom eesnimeks Tom123
+update vEmployeesDataExceptSalary
+set [FirstName] = 'Tom123' where Id = 1
+
+--kustutame andmeid ja kasutame view-d
+delete from vEmployeesDataExceptSalary where Id = 2
+--sisestame läbi view andmeid juurde
+--Id 2, Gender Female, DeptId 2, Name Pam
+insert into vEmployeesDataExceptSalary (Id, Gender, DepartmentId, FirstName)
+values(2, 'Female', 2, 'Pam')
+
+select * from vEmployeesDataExceptSalary
+
+--indekseeritud view
+--MS SQL-s on indekseeritud view nime all ja
+--Oracle-s materjaliseeritud view
+
+create table Product
+(
+Id int primary key,
+Name nvarchar(20),
+UnitPrice int
+)
+select * from Product
+
+create table ProductSales
+(
+Id int,
+QuantitySold int
+)
+select * from ProductSales
+
+--loome view, mis annab meile veerud TotalSales ja TotalTransaction
+--sum, isnull, count_big
+create view vTotalSalesTransactionProduct
+with schemabinding
+as
+select Name,
+sum(isnull((QuantitySold * UnitPrice), 0)) as TotalSales,
+count_big(*) as TotalTransactions
+from dbo.ProductSales
+join dbo.Product
+on dbo.Product.Id = dbo.ProductSales.Id
+group by Name
+
+--- kui soovid luua indeksi view sisse, siis peab järgima teatud reegleid
+-- 1. view tuleb luua koos schemabinding-ga
+-- 2. kui lisafunktsioon select list viitab väljendile ja selle tulemuseks
+-- võib olla NULL, siis asendusväärtus peaks olema täpsustatud. 
+-- Antud juhul kasutasime ISNULL funktsiooni asendamaks NULL väärtust
+-- 3. kui GroupBy on täpsustatud, siis view select list peab
+-- sisaldama COUNT_BIG(*) väljendit
+-- 4. Baastabelis peaksid view-d olema viidatud kahesosalie nimega
+-- e antud juhul dbo.Product ja dbo.ProductSales.
+
+select * from vTotalSalesTransactionProduct
+
+--paneb selle view t'hestikulisse j'rjestusse
+create unique clustered index UIX_vTotalSalesByProduct_Name
+on vTotalSalesTransactionProduct(Name)
+
+--view piirangud
+create view vEmployeeDetails
+@Gender nvarchar(20)
+as
+select Id, FirstName, Gender, DepartmentId
+from Employees
+where Gender = @Gender
+--vaatesse ei saa kaasa panna parameetreid e antud juhul Gender
+
+create function fnEmployeeDetails(@Gender nvarchar(20))
+returns table
+as return
+(select Id, FirstName, Gender, DepartmentId
+from Employees where Gender = @Gender)
+
+--funktsiooni esile kutsumine koos parameetritega
+select * from fnEmployeeDetails('male')
+
+--teha view nimega vEmployeeDetailsSorted
+--kasutada order by-d
+create view vEmployeeDetailsSorted
+as
+select Id, FirstName, Gender, DepartmentId
+from Employees
+order by Id
+--order by-d ei saa kasutada
+
+--teha globaalne temp table
+--muutujad on Id, Name, Gender
+--sisestada neli rida andmeid
+create table ##TestTempTable(Id int, FirstName nvarchar(20), Gender nvarchar(10))
+
+insert into ##TestTempTable values(101, 'Martin', 'Male')
+insert into ##TestTempTable values(102, 'Joe', 'Female')
+insert into ##TestTempTable values(103, 'Pam', 'Female')
+insert into ##TestTempTable values(104, 'James', 'Male')
+
+--sisestame andmed
+create view vOnTempTable
+as
+select Id, FirstName, Gender
+from ##TestTempTable
+--temp tabelit ei saa kasutada view-s
+
+-- Triggerid
+
+-- DML trigger
+--- kokku on kolme tüüpi: DML, DDL ja LOGON
+
+--- trigger on stored procedure eriliik, mis automaatselt käivitub, kui mingi tegevus 
+--- peaks andmebaasis aset leidma
+
+--- DML - data manipulation language
+--- DML-i põhilised käsklused: insert, update ja delete
+
+-- DML triggereid saab klasifitseerida  kahte tüüpi:
+-- 1. After trigger (kutsutakse ka FOR triggeriks)
+-- 2. Instead of trigger (selmet trigger e selle asemel trigger)
+
+--- after trigger käivitub peale sündmust, kui kuskil on tehtud insert, update ja delete
+
+-- loome tabeli
+create table EmployeeAudit
+(
+Id int identity(1,1) primary key,
+AuditData nvarchar(1000)
+)
+
+--peale iga t;;taja sisestamist tahame teada saada t;;taja Id-d, p'eva ning aega(millal sisestati)
+--k]ik andmed tulevad EmployeeAudit tabelisse
+create trigger trEmployeeForInsert
+on Employees
+for insert
+as begin
+	declare @Id int
+	select @Id = Id from inserted
+	insert into EmployeeAudit
+	values ('New employee with Id = ' + cast(@Id as nvarchar(5)) + ' is added at '
+	+ cast(GETDATE() as nvarchar(20)))
+end
+
+select * from Employees
+insert into Employees values (11, 'Male', 3000, 1, 3, 'Bob', 'Blob', 'Bomb', 'bob@bomb.com')
+select * from Employees
+select * from EmployeeAudit
+
+--delete trigger
+--kasutame Employees tabelit
+--kui kustutakse andmeid siis salvesta tegevus EmployeeAudit
+create trigger trEmployeeForDelete
+on Employees
+for delete
+as begin
+	declare @Id int
+	select @Id = Id from deleted
+
+	insert into EmployeeAudit
+	values('An existing employee with Id =  ' + cast(@Id as nvarchar(5)) + ' is deleted at '
+	+ CAST(GETDATE() as nvarchar(20)))
+end
+
+delete from Employees where Id = 11
+
+---rida 1633
+--- tund 9
 
