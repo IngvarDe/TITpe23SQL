@@ -1579,4 +1579,160 @@ delete from Employees where Id = 11
 
 ---rida 1633
 --- tund 9
+-- 02.10.2025
+
+create trigger trEmployeeForUpdate
+on Employees
+for update
+as begin
+	--muutujate deklareerimine
+	declare @Id int
+	declare @OldGender nvarchar(20), @NewGender nvarchar(20)
+	declare @OldSalary int, @NewSalary int
+	declare @OldDepartmentId int, @NewDepartmentId int
+	declare @OldManagerId int, @NewManagerId int
+	declare @OldFirstName nvarchar(20), @NewFirstName nvarchar(20)
+	declare @OldMiddleName nvarchar(20), @NewMiddleName nvarchar(20)
+	declare @OldLastName nvarchar(20), @NewLastName nvarchar(20)
+	declare @OldEmail nvarchar(50), @NewEmail nvarchar(50)
+	
+	--muutuja, kuhu läheb lõpptekst
+	declare @AuditString nvarchar(1000)
+
+	--laeb kõik uuendatud andmed temp table alla
+	select * into #TempTable
+	from inserted
+
+	--käib läbi kõik andmed temp tabelis
+	while(exists(select Id from #TempTable))
+	begin
+		set @AuditString = ''
+		--selekteerib esimese rea andmed temp tabelist
+		select top 1 @Id = Id, @NewGender = Gender,
+		@NewSalary = Salary, @NewDepartmentId = DepartmentId,
+		@NewManagerId = ManagerId, @NewFirstName = FirstName,
+		@NewMiddleName = MiddleName, @NewLastName = LastName,
+		@NewEmail = Email
+		from #TempTable
+		-- võtab vanad andmed kustutatud tabelist
+		select @OldGender = Gender,
+		@OldSalary = Salary, @OldDepartmentId = DepartmentId,
+		@OldManagerId = ManagerId, @OldFirstName = FirstName,
+		@OldMiddleName = MiddleName, @OldLastName = LastName,
+		@OldEmail = Email
+		from deleted where Id = @Id
+
+		--loob auditi stringi dünaamiliselt
+		set @AuditString = 'Employee with Id = ' + cast(@Id as nvarchar(4)) + ' changed '
+		if(@OldGender <> @NewGender)
+			set @AuditString = @AuditString + ' Gender from ' + @OldGender + ' to ' +
+			@NewGender
+
+		if(@OldSalary <> @NewSalary)
+			set @AuditString = @AuditString + ' Salary from ' + cast(@OldSalary as nvarchar(20)) + ' to ' 
+			+ cast(@NewSalary as nvarchar(10))
+
+		if(@OldDepartmentId <> @NewDepartmentId)
+			set @AuditString = @AuditString + ' DepartmentId from ' + cast(@OldDepartmentId as nvarchar(20)) + ' to ' 
+			+ cast(@NewDepartmentId as nvarchar(10))
+
+		if(@OldManagerId <> @NewManagerId)
+			set @AuditString = @AuditString + ' ManagerId from ' + cast(@OldManagerId as nvarchar(20)) + ' to ' 
+			+ cast(@NewManagerId as nvarchar(10))
+
+		if(@OldFirstName <> @NewFirstName)
+			set @AuditString = @AuditString + ' Firstname from ' + @OldFirstName + ' to ' +
+			@NewFirstName
+
+		if(@OldMiddleName <> @NewMiddleName)
+			set @AuditString = @AuditString + ' Middlename from ' + @OldMiddleName + ' to ' +
+			@NewMiddleName
+
+		if(@OldLastName <> @NewLastName)
+			set @AuditString = @AuditString + ' Lastname from ' + @OldLastName + ' to ' +
+			@NewLastName
+
+		if(@OldEmail <> @NewEmail)
+			set @AuditString = @AuditString + ' Email from ' + @OldEmail + ' to ' +
+			@NewEmail
+
+		insert into dbo.EmployeeAudit values (@AuditString)
+		--kustutab temp tabelest rea, et saaksime liikuda uue rea juurde
+		delete from #TempTable where Id = @Id
+	end
+end
+
+--uuendame t;;taja andmeid, mille Id on 10
+--muudate ta nime, palka ja keskmist nime
+update Employees set FirstName = 'testasd', Salary = 4001, MiddleName = '456asd'
+where Id = 10
+
+--p'rid tabelit Employees ja EmployeeAudit ka samal ajal
+select * from Employees
+select * from EmployeeAudit
+
+--instead of trigger
+create table Employee
+(
+Id int primary key,
+Name nvarchar(30),
+Gender nvarchar(10),
+DepartmentId int
+)
+
+-- kellel ei ole seda tabelit, siis nemad sisestavad selle koodi
+create table Department
+(
+Id int primary key,
+DepartmentName nvarchar(20)
+)
+
+insert into Employee values(1, 'John', 'Male', 3)
+insert into Employee values(2, 'Mike', 'Male', 2)
+insert into Employee values(3, 'Pam', 'Female', 1)
+insert into Employee values(4, 'Todd', 'Male', 4)
+insert into Employee values(5, 'Sara', 'Female', 1)
+insert into Employee values(6, 'Ben', 'Male', 3)
+
+select * from Employee
+
+create view vEmployeeDetails
+as
+select Employee.Id, Name, Gender, DepartmentName
+from Employee
+join Department
+on Employee.DepartmentId = Department.Id
+
+select * from vEmployeeDetails
+
+insert into vEmployeeDetails values(7, 'Valarie', 'Female', 'IT')
+--tuleb veateade
+--nüüd vaatame, et kuidas saab instead of triggeriga seda probleemi lahendada
+
+create trigger tr_vEmployeeDetails_InsteadOfInsert
+on vEmployeeDetails
+instead of insert
+as begin
+	declare @DeptId int
+
+	select @DeptId = dbo.Department.Id
+	from Department
+	join inserted
+	on inserted.DepartmentName = Department.DepartmentName
+
+	if(@DeptId is null)
+		begin
+		raiserror('Invalid department name. Statement terminated', 16, 1)
+		return
+	end
+
+	insert into dbo.Employee(Id, Name, Gender, DepartmentId)
+	select Id, Name, Gender, @DeptId
+	from inserted
+end
+
+
+
+
+
 
