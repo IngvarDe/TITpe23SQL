@@ -1814,6 +1814,57 @@ select * from vEmployeeDetails
 --tuleb teha view, mille nimi on vEmployeeCount
 --peab kokku arvutama, et mitu t;;tajat on tabelis teatud osakondades
 
+create view vEmployeeCount
+as
+select DepartmentId, DepartmentName, count(*) as TotalEmployees
+from Employee
+join Department
+on Employee.DepartmentId = Department.Id
+group by DepartmentName, DepartmentId
 
 
 select * from vEmployeeCount
+
+--n'ita ära osakonnad, kus on töötajaid 2tk või rohkem
+select DepartmentName, TotalEmployees from vEmployeeCount
+where TotalEmployees >= 2
+
+--kasutame temp tabelit
+select DepartmentName, DepartmentId, count(*) as TotalEmployees
+into #TempEmployeeCount
+from Employee
+join Department
+on Employee.DepartmentId = Department.Id
+group by DepartmentName, DepartmentId
+
+select * from #TempEmployeeCount
+
+--n'ita ära osakonnad, kus on töötajaid 2tk või rohkem, aga kasuta #TempEmployeeCount
+select DepartmentName, TotalEmployees from #TempEmployeeCount
+where TotalEmployees >= 2
+
+--teeme view, et kasutada seda triggeris 'ra
+create view vEmployeeDetails
+as
+select Employee.Id, Name, Gender, DepartmentName
+from Employee
+join Department
+on Employee.DepartmentId = Department.Id
+
+--kustutame 'ra triggeri
+drop trigger tr_vEmployeeDetails_InsteadOfUpdate
+
+--teha instead of delete trigger
+--kasutada vEmployeeDetails
+create trigger trEmployeeDetails_InsteadOfdDelete
+on vEmployeeDetails
+instead of delete
+as begin
+delete Employee
+from Employee
+join deleted
+on Employee.Id = deleted.Id
+end
+
+delete from vEmployeeDetails where Id = 2
+select * from Employee
