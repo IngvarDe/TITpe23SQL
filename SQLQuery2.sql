@@ -1868,3 +1868,215 @@ end
 
 delete from vEmployeeDetails where Id = 2
 select * from Employee
+
+-- rida 1909
+-- 07.10.25
+-- 10 tund
+
+-- CTE tähendab common table expressionit
+truncate table Employee
+
+insert into Employee values
+(6, 'John', 'Male', 1),
+(7, 'Pam', 'Female', 4)
+
+select * from Employee
+
+--CTE
+with EmployeeCount(DepartmentName, DepartmentId, TotalEmployees)
+as
+	(
+	select DepartmentName, DepartmentId, count(*) as TotalEmployees
+	from Employee
+	join Department
+	on Employee.DepartmentId = Department.Id
+	group by DepartmentName, DepartmentId
+	)
+select DepartmentName, TotalEmployees
+from EmployeeCount
+where TotalEmployees >= 2
+
+-- päritud tabeli variant
+select DepartmentName, TotalEmployees
+from
+	(
+	select DepartmentName, DepartmentId, count(*) as TotalEmployees
+	from Employee
+	join Department
+	on Employee.DepartmentId = Department.Id
+	group by DepartmentName, DepartmentId
+	)
+as EmployeeCount
+where TotalEmployees >= 2
+
+--mitu CTE-d järjest
+--esimese CTE nimi on EmployeeCountBy_Payroll_IT_Dept(DepartmentName, Total)
+--saame teada, kui palju töötab IT ja Payroll osakonnas
+with EmployeeCountBy_Payroll_IT_Dept(DepartmentName, Total)
+as
+(
+select DepartmentName, Count(Employee.Id) as TotalEmployees
+from Employee
+join Department
+on Employee.DepartmentId = Department.Id
+where DepartmentName in('Payroll', 'IT')
+group by DepartmentName
+),
+--teise CTE nimi on EmployeesCountBy_HR_Admin_Dept(DepartmentName, Total)
+EmployeesCountBy_HR_Admin_Dept(DepartmentName, Total)
+as
+(
+select DepartmentName, Count(Employee.Id) as TotalEmployees
+from Employee
+join Department
+on Employee.DepartmentId = Department.Id
+group by DepartmentName
+)
+--tuleb kasutada unionit kahe CTE päringu ühitamisel
+select * from EmployeeCountBy_Payroll_IT_Dept
+union
+select * from EmployeesCountBy_HR_Admin_Dept
+
+-- peale CTE-d peab kohe tulema käsklus SELECT, INSERT, UPDATE või DELETE
+-- kui proovid midagi muud, siis tuleb veateade
+-- tuleb teha join päring, kus saame samasugused andmed nagu oli eelmise päringuga
+select DepartmentName, count(Department.Id)
+from Department
+join Employee
+on Department.Id = Employee.DepartmentId
+group by DepartmentName
+
+-- uuendamine CTE-s
+-- loome lihtsa CTE
+with Employees_Name_Gender
+as
+(
+	select Id, Name, Gender from Employee
+)
+select * from Employees_Name_Gender
+
+--uuendame andmeid ja kasutame selleks CTE-d
+--uuendame Id 1-te genderit Female peale
+with Employees_Name_Gender
+as
+(
+	select Id, Name, Gender from Employee
+)
+update Employees_Name_Gender set Gender = 'Female' where Id = 1
+go
+select * from Employee
+
+--kasutame join-i CTE tegemisel
+with EmployeesByDepartment
+as
+(
+select Employee.Id, Name, Gender, DepartmentName
+from Employee
+join Department
+on Department.Id = Employee.DepartmentId
+)
+select * from EmployeesByDepartment
+
+--kasutame joini ja muudame Employee tabelis Id = 1-ga genderi Male peale
+with EmployeesByDepartment
+as
+(
+select Employee.Id, Name, Gender, DepartmentName
+from Employee
+join Department
+on Department.Id = Employee.DepartmentId
+)
+update EmployeesByDepartment set Gender = 'Male' where Id = 1
+
+select * from Employee
+
+--kasutame join-i ja muudame mõlemas tabelis andmeid
+--Id = 1 on n[[d Gender jälle Female, DepartmentName = IT
+with EmployeesByDepartment
+as
+(
+	select Employee.Id, Name, Gender, DepartmentName
+	from Employee
+	join Department
+	on Department.Id = Employee.DepartmentId
+)
+update EmployeesByDepartment set Gender = 'Male', DepartmentName = 'IT'
+where Id = 1
+--ei luba teha uuendusi kuna rohkem, kui ühes tabelis ei tohi teha uuendusi
+
+with EmployeesByDepartment
+as
+(
+	select Employee.Id, Name, Gender, DepartmentName
+	from Employee
+	join Department
+	on Department.Id = Employee.DepartmentId
+)
+update EmployeesByDepartment set DepartmentName = 'IT'
+where Id = 1
+
+--- kokkuvõte CTE-st
+-- 1. kui CTE baseerub ühel tabelil, siis uuendus töötab
+-- 2. kui CTE baseerub mitmel tablil, siis tuleb veateade
+-- 3. kui CTE baseerub mitmel tabelil ja tahame muuta ainult ühte tabelit, siis
+-- uuendus saab tehtud
+
+--- CTE, mis iseendale viitab, kutsutakse korduvaks CTE-ks
+--- kui tahad andmeid näidata hierarhiliselt
+
+truncate table Employee
+
+select * from Employee
+
+insert into Employee values
+(1, 'Tom', 2),
+(2, 'Josh', null),
+(3, 'Mike', 2),
+(4, 'John', 3),
+(5, 'Pam', 1),
+(6, 'Mary', 3),
+(7, 'James', 1),
+(8, 'Sam', 5),
+(9, 'Simon', 1)
+
+-- tuleb teha left join
+--ja kuvada NULL veeru asemel Super Boss
+-- kui v''rtus
+select Emp.Name as [Employee Name],
+isnull(Manager.Name, 'Super Boss') as [Manager Name]
+from dbo.Employee Emp
+left join Employee Manager
+on Emp.DepartmentId = Manager.Id
+
+--kasutame CTE-d
+with EmployeeCTE(Id, Name, DepartmentId, [Level])
+as
+(
+	select Employee.Id, Name, DepartmentId, 1
+	from Employee
+	where DepartmentId is null
+
+	union all
+
+	select Employee.Id, Employee.Name,
+	Employee.DepartmentId, EmployeeCTE.[Level] + 1
+	from Employee
+	join EmployeeCTE
+	on Employee.DepartmentId = EmployeeCTE.Id
+)
+select EmpCTE.Name as Employee, isnull(MgrCTE.Name, 'Super Boss') as Manager,
+EmpCTE.[Level]
+from EmployeeCTE EmpCTE
+left join EmployeeCTE MgrCTE
+on EmpCTE.DepartmentId = MgrCTE.Id
+
+--- PIVOT
+create table ProductSales
+(
+SalesAgent nvarchar(50),
+SalesCountry nvarchar(50),
+SalesAmount int
+)
+
+--rida 2133
+-- 11 tund 
