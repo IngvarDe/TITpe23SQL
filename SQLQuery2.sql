@@ -2107,3 +2107,295 @@ insert into ProductSales values('Tom', 'UK', 480)
 insert into ProductSales values('John', 'UK', 360)
 insert into ProductSales values('David', 'UK', 140)
 
+
+select SalesCountry, SalesAgent, SUM(SalesAmount) as Total
+from ProductSales
+group by SalesCountry, SalesAgent
+order by SalesCountry, SalesAgent
+
+--pivot näide
+select SalesAgent, India, US, UK
+from ProductSales
+pivot
+(
+sum(SalesAmount) for SalesCountry in ([India], [US], [UK])
+)
+as PivotTabel
+
+--p'ring muudab unikaalsete veergude väärtust (India, US, UK) SalesCountry veerus
+--omaette veergudeks koos veergude SalesAmount liitmisega
+
+create table ProductsSalesWithId
+(
+Id int primary key,
+SalesAgent nvarchar(50),
+SalesCountry nvarchar(50),
+SalesAmount int
+)
+
+insert into ProductsSalesWithId values(1, 'Tom', 'UK', 200)
+insert into ProductsSalesWithId values(2, 'John', 'US', 180)
+insert into ProductsSalesWithId values(3, 'John', 'UK', 260)
+insert into ProductsSalesWithId values(4, 'David', 'India', 450)
+insert into ProductsSalesWithId values(5, 'Tom', 'India', 350)
+
+insert into ProductsSalesWithId values(6, 'David', 'US', 200)
+insert into ProductsSalesWithId values(7, 'Tom', 'US', 130)
+insert into ProductsSalesWithId values(8, 'John', 'India', 540)
+insert into ProductsSalesWithId values(9, 'John', 'UK', 120)
+insert into ProductsSalesWithId values(10, 'David', 'UK', 220)
+
+insert into ProductsSalesWithId values(11, 'John', 'UK', 420)
+insert into ProductsSalesWithId values(12, 'David', 'US', 320)
+insert into ProductsSalesWithId values(13, 'Tom', 'US', 340)
+insert into ProductsSalesWithId values(14, 'Tom', 'UK', 660)
+insert into ProductsSalesWithId values(15, 'John', 'India', 430)
+
+insert into ProductsSalesWithId values(16, 'David', 'India', 230)
+insert into ProductsSalesWithId values(17, 'David', 'India', 280)
+insert into ProductsSalesWithId values(18, 'Tom', 'UK', 480)
+insert into ProductsSalesWithId values(19, 'John', 'UK', 360)
+insert into ProductsSalesWithId values(20, 'David', 'UK', 140)
+
+select SalesAgent, India, US, UK
+from ProductsSalesWithId
+pivot
+(
+	sum(SalesAmount) for SalesCountry in ([India], [US], [UK])
+)
+as PivotTable
+--miks ei näita tulemust:
+--põhjuseks on Id veeru olemasolu productSalesWithId, mida võetakse arvesse
+--pööramise ja grupeerimise järgi
+select SalesAgent, India, US, UK
+from
+(
+	select SalesAgent, SalesCountry, SalesAmount from ProductsSalesWithId
+)
+as SourceTable
+pivot
+(
+	sum(SalesAmount) for SalesCountry in (India, US, UK)
+)
+as PivotTable
+
+--UNPIVOT teha
+--kasutada tabelit ProductsSalesWithId
+select Id, FromAgentOrCountry, CountryOrAgent
+from
+(
+	select Id, SalesAgent, SalesCountry, SalesAmount
+	from ProductsSalesWithId
+) as SourceTable
+unpivot
+(
+CountryOrAgent for FromAgentOrCountry in (SalesAgent, SalesCountry)
+)
+as PivotTable
+
+---transactionid
+
+--transaction jälgib järgmisi samme:
+--1. selle algust
+--2. käivitab DB käske
+--3. kontrollib vigu. Kui on viga, siis taastab algse oleku
+
+create table MailingAddress
+(
+Id int not null primary key,
+EmployeeNumber int,
+HouseNumber nvarchar(50),
+StreetAddress nvarchar(50),
+City nvarchar(10),
+PostalCode nvarchar(20)
+)
+
+insert into MailingAddress
+values(1, 101, '#10', 'King Street', 'Londoon', 'CR27DW')
+
+create table PhysicalAddress
+(
+Id int not null primary key,
+EmployeeNumber int,
+HouseNumber nvarchar(50),
+StreetAddress nvarchar(50),
+City nvarchar(10),
+PostalCode nvarchar(20)
+)
+
+insert into PhysicalAddress
+values(1, 101, '#10', 'King Street', 'Londoon', 'CR27DW')
+
+create proc spUpdateAddress
+as begin
+	begin try
+		begin transaction
+			update MailingAddress set City = 'LONDON'
+			where MailingAddress.Id = 1 and EmployeeNumber = 101
+
+			update PhysicalAddress set City = 'LONDON'
+			where PhysicalAddress.Id = 1 and EmployeeNumber = 101
+		commit transaction
+	end try
+	begin catch
+		rollback tran
+	end catch
+end
+
+spUpdateAddress
+
+select * from MailingAddress
+select * from PhysicalAddress
+
+--muudame sp nimeks spUpdateAddress
+alter proc spUpdateAddress
+as begin
+	begin try
+		begin transaction
+			update MailingAddress set City = 'LONDON 12'
+			where MailingAddress.Id = 1 and EmployeeNumber = 101
+
+			update PhysicalAddress set City = 'LONDON LONDON'
+			where PhysicalAddress.Id = 1 and EmployeeNumber = 101
+		commit transaction
+	end try
+	begin catch
+		rollback tran
+	end catch
+end
+
+spUpdateAddress
+select * from MailingAddress
+select * from PhysicalAddress
+
+--kui teine uuendus ei l'he l'bi, siis esimene ei lähe ka läbi
+--kõik uuendused peavad läbi minema
+
+-- transaction ACID test
+
+--edukas transaction peab läbima ACID testi:
+-- A - atomic e aatomlikus
+-- C - consistent e järjepidevus
+-- I - isolated e isoleeritus
+-- D - durable e vastupidav
+
+--- Atomic - kõik tehingud transactionis on kas edukalt täidetud või need 
+-- lükatakse tagasi. Nt, mõlemad käsud peaksid alati õnnesutma. Andmebaas 
+-- teeb sellisel juhul: võtab esimese update tagasi ja veeretab selle algasendisse
+-- e taastab algsed andmed
+
+--- Consistent - kõik transactioni puudutavad andmed jäetakse loogiliselt 
+-- järjepidevasse olekusse. Nt, kui laos saadaval olevaid esemete hulka 
+-- vähendatakse, siis tabelis peab olema vastav kanne. Inventuur ei saa
+-- lihtsalt kaduda
+
+--- Isolated - transaction peab andmeid mõjutama, sekkumata teistesse
+-- samaaegsetesse transactionitesse. See takistab andmete muutmist, mis 
+-- põhinevad sidumata tabelitel. Nt, muudatused kirjas, mis hiljem tagasi 
+-- muudetakse. Enamik DB-d kasutab tehingute isoleerimise säilitamiseks 
+-- lukustamist
+
+--- Durable - kui muudatus on tehtud, siis see on püsiv. Kui süsteemiviga või
+-- voolukatkestus ilmneb enne käskude komplekti valmimist, siis tühistatkse need 
+-- käsud ja andmed taastakse algsesse olekusse. Taastamine toimub peale 
+-- süsteemi taaskäivitamist.
+
+-- subqueries
+-- tabel tühjaks teha
+truncate table Product
+truncate table ProductSales
+
+create table Product
+(
+Id int identity primary key,
+Name nvarchar(50),
+Description nvarchar(250)
+)
+
+create table ProductSales
+(
+Id int primary key identity,
+ProductId int foreign key references Product(Id),
+UnitPrice int,
+QuantitySold int
+)
+
+insert into Product values ( 'TV', '52 inch black color LCD TV')
+insert into Product values ( 'Laptop', 'Very thin black color laptop')
+insert into Product values ( 'Desktop', 'HP high performance desktop')
+
+insert into ProductSales values(3, 450, 5)
+insert into ProductSales values(2, 250, 7)
+insert into ProductSales values(3, 450, 4)
+insert into ProductSales values(3, 450, 9)
+
+select * from Product
+select * from ProductSales
+
+--kirjutame päringu, mis annab infot müümata toodetest
+select Id, Name, Description
+from Product
+where Id not in (select distinct ProductId from ProductSales)
+
+--teha samasuguse tulemusega päring, aga kasuta JOIN-i
+select Product.Id, Name, Description
+from Product
+left join ProductSales
+on Product.Id = ProductSales.ProductId
+where ProductSales.ProductId is null
+
+-- teeme suqueri, kus kasutame selecti. Kirjutame p'ringu, kus
+-- saame teada NAME ja TotalQuantity veeru andmeid
+select Name,
+(select sum(QuantitySold) from ProductSales where ProductId = Product.Id) as
+[Total Quantity]
+from Product
+order by Name
+
+--sama p'ring left joiniga ja kasutame group by-d ja order by-d
+select Name, sum(QuantitySold) as TotalQuantity
+from Product
+left join ProductSales
+on Product.Id = ProductSales.ProductId
+group by Name
+order by Name
+
+-- subqueryt saab subquery sisse panna
+-- subquerid on alati sulgudes ja neid nimetatakse sisemisteks päringuteks
+
+-- rohkete andmetega testimise tabel
+truncate table Product
+truncate table ProductSales
+
+---
+declare @Id int
+set @Id = 1
+while(@Id <= 30000000)
+begin
+	insert into Product values('Product - ' + cast(@Id as nvarchar(20)),
+	'Product - ' cast(@Id as nvarchar(20)) + ' Description')
+
+	print @Id
+	set @Id = @Id + 1
+end
+
+declare @RandomProductId int
+declare @RandomUnitPrice int
+declare @RandomQuantitySold int
+
+-- productId
+declare @LowerLimitForProductId int
+declare @UpperLimitForProductId int
+
+set @LowerLimitForProductId = 1
+set @UpperLimitForProductId = 1000000
+
+--unitprice
+declare @LowerLimitForUnitPrice int
+declare @UpperLimitForUnitPrice int
+
+set @LowerLimitForUnitPrice = 1
+set @UpperLimitForUnitPrice = 1000
+
+-- rida 2477
+-- tund 12
