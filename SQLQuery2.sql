@@ -2080,3 +2080,30 @@ SalesAmount int
 
 --rida 2133
 -- 11 tund 
+-- 14.10.2025
+
+select * from ProductSales
+insert into ProductSales values('Tom', 'UK', 200)
+insert into ProductSales values('John', 'US', 180)
+insert into ProductSales values('John', 'UK', 260)
+insert into ProductSales values('David', 'India', 450)
+insert into ProductSales values('Tom', 'India', 350)
+
+insert into ProductSales values('David', 'US', 200)
+insert into ProductSales values('Tom', 'US', 130)
+insert into ProductSales values('John', 'India', 540)
+insert into ProductSales values('John', 'UK', 120)
+insert into ProductSales values('David', 'UK', 220)
+
+insert into ProductSales values('John', 'UK', 420)
+insert into ProductSales values('David', 'US', 320)
+insert into ProductSales values('Tom', 'US', 340)
+insert into ProductSales values('Tom', 'UK', 660)
+insert into ProductSales values('John', 'India', 430)
+
+insert into ProductSales values('David', 'India', 230)
+insert into ProductSales values('David', 'India', 280)
+insert into ProductSales values('Tom', 'UK', 480)
+insert into ProductSales values('John', 'UK', 360)
+insert into ProductSales values('David', 'UK', 140)
+
