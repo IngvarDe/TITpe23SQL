@@ -2370,7 +2370,7 @@ truncate table ProductSales
 ---
 declare @Id int
 set @Id = 1
-while(@Id <= 30000000)
+while(@Id <= 1000000)
 begin
 	insert into Product values('Product - ' + cast(@Id as nvarchar(20)),
 	'Product - ' + cast(@Id as nvarchar(20)) + ' Description')
@@ -2409,7 +2409,7 @@ set @UpperLimitForQuantitySold = 20
 declare @Counter int
 set @Counter = 1
 
-while(@Counter <= 14500000)
+while(@Counter <= 1450000)
 begin
 	select @RandomProductId = round(((@UpperLimitForProductId - 
 	@LowerLimitForProductId) * RAND() + @LowerLimitForProductId), 0)
@@ -2426,3 +2426,119 @@ begin
 	print @Counter
 	set @Counter = @Counter + 1
 end
+
+select * from Product
+select * from ProductSales
+
+select Id, Name, Description
+from Product
+where Id in
+(
+select Product.Id from ProductSales
+)
+
+---peaaegu 10,7 miljonit rida tegi ära 38 sekundiga
+
+--teeme cache puhtaks, et uut päringut ei oleks kuskile vahemällu salvestatud
+checkpoint;
+go
+dbcc DROPCLEANBUFFERS; ---puhastab päringu cache-i
+go
+dbcc FREEPROCCACHE; --puhastab täitva planeeritud cache-i
+go
+
+--teeme sama tabeli peale inner join päringu
+--distinct otsib veerus ülesse teatud väärtused, aga mitte korduvaid
+--väga tihti on samas veerus korduvad väärtused
+select distinct Product.Id, Name, Description
+from Product
+inner join ProductSales
+on Product.Id = ProductSales.ProductId
+--p'ring tehti ära 0 sekundiga
+--teeme cache puhtaks
+
+select Id, Name, Description
+from Product
+where not exists(select * from ProductSales where ProductId = Product.Id)
+--päring tehti ära 38 sekundiga
+-- teeme cache puhtaks
+
+--kasutame left joini
+--where tingimus, kus on Productid is null
+select Product.Id, Name, Description
+from Product
+left join ProductSales
+on Product.Id = ProductSales.ProductId
+where ProductSales.ProductId is null
+--võtab aega 42 sekundit
+
+--CURSOR
+--- relatsiooniliste DB-de haldussüsteemid saavad väga hästi hakkama 
+--- SETS-ga. SETS lubab mitut päringut kombineerida üheks tulemuseks.
+--- Sinna alla käivad UNION, INTERSECT ja EXCEPT.
+
+update ProductSales set UnitPrice = 450
+where ProductSales.ProductId = 3
+
+--- kui on vaja rea kaupa andmeid töödelda, siis kõige parem oleks kasutada 
+--- Cursoreid. Samas on need jõudlusele halvad ja võimalusel vältida. 
+--- Soovitav oleks kasutada JOIN-i.
+
+-- Cursorid jagunevad omakorda neljaks:
+-- 1. Forward-Only e edasi-ainult
+-- 2. Static e staatilised
+-- 3. Keyset e võtmele seadistatud
+-- 4. Dynamic e dünaamiline
+
+--cursori näide:
+if the ProductName = 'Product - 55', set UnitPrice to 55
+
+--nüüd algab õige kursori näide
+-------------------------------
+declare @ProductId int
+--deklareerime cursori
+declare ProductIdCursor cursor for
+select ProductId from ProductSales
+-- open avaldusega täidab select avaldust
+-- ja sisestab tulemuse
+open ProductIdCursor
+
+fetch next from ProductIdCursor into @ProductId
+--kui tulemuses on veel ridu, siis @@FETCH_STATUS on 0
+while(@@FETCH_STATUS = 0)
+begin
+	declare @ProductName nvarchar(50)
+	select @ProductName = Name from Product where Id = @ProductId
+
+	if(@ProductName = 'Product - 55')
+	begin
+		update ProductSales set UnitPrice = 55 where ProductId = @ProductId
+	end
+
+	else if(@ProductName = 'Product - 65')
+	begin
+		update ProductSales set UnitPrice = 65 where ProductId = @ProductId
+	end
+
+	else if(@ProductName = 'Product - 1000')
+	begin
+		update ProductSales set UnitPrice = 1000 where ProductId = @ProductId
+	end
+
+	fetch next from ProductIdCursor into @ProductId
+end
+-- tegi 19 sekundiga
+close ProductIdCursor
+-- vabastab ressursid, mis on seotud cursoriga
+deallocate ProductIdCursor
+
+--vaatame, kas read on uuendatud
+select Name, UnitPrice
+from Product join
+ProductSales on Product.Id = ProductSales.ProductId
+where(Name = 'Product - 55' or Name = 'Product - 65' or Name = 'Product - 1000')
+
+--- rida 2618
+--- tund 13
+
+
