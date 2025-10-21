@@ -2373,7 +2373,7 @@ set @Id = 1
 while(@Id <= 30000000)
 begin
 	insert into Product values('Product - ' + cast(@Id as nvarchar(20)),
-	'Product - ' cast(@Id as nvarchar(20)) + ' Description')
+	'Product - ' + cast(@Id as nvarchar(20)) + ' Description')
 
 	print @Id
 	set @Id = @Id + 1
@@ -2399,3 +2399,30 @@ set @UpperLimitForUnitPrice = 1000
 
 -- rida 2477
 -- tund 12
+-- 21.10.25
+declare @LowerLimitForQuantitySold int
+declare @UpperLimitForQuantitySold int
+
+set @LowerLimitForQuantitySold = 1
+set @UpperLimitForQuantitySold = 20
+
+declare @Counter int
+set @Counter = 1
+
+while(@Counter <= 14500000)
+begin
+	select @RandomProductId = round(((@UpperLimitForProductId - 
+	@LowerLimitForProductId) * RAND() + @LowerLimitForProductId), 0)
+
+	select @RandomUnitPrice = round(((@UpperLimitForUnitPrice -
+	@LowerLimitForUnitPrice) * rand() + @LowerLimitForUnitPrice), 0)
+
+	select @RandomQuantitySold = round(((@UpperLimitForQuantitySold -
+	@LowerLimitForQuantitySold) * rand() + @LowerLimitForQuantitySold), 0)
+
+	insert into ProductSales
+	values(@RandomProductId, @RandomUnitPrice, @RandomQuantitySold)
+
+	print @Counter
+	set @Counter = @Counter + 1
+end
