@@ -2974,6 +2974,7 @@ update TableA set Name = Name +
 --samm nr 3
 update TableB set Name = Name +
 'Transaction 1' where Id = 1
+
 -- samm nr 5
 commit tran
 
@@ -2998,3 +2999,63 @@ insert into TableA values('Pam')
 insert into TableA values('Sara')
 
 insert into TableB values('Mary')
+
+select * from TableA
+select * from TableB
+
+
+--deadlock vea käsitlemine
+create proc spTransaction1
+as begin
+	begin tran
+	begin try
+		update TableA set Name = 'Mark Transaction 1' where Id = 1
+		waitfor delay '00:00:05'
+		update TableB set Name = 'Mary Transaction 1' where Id = 1
+
+		commit tran
+		select 'Transaction Successful'
+	end try
+	begin catch
+		-- vaatab, kas see error on deadlocki oma
+		if(ERROR_NUMBER() = 1205)
+		begin 
+			select 'Deadlock. Transaction failed. Please try'
+		end
+
+		rollback
+	end catch
+end
+
+create proc spTransaction2
+as begin
+	begin tran
+	begin try
+		update TableA set Name = 'Mark Transaction 1' where Id = 1
+		waitfor delay '00:00:05'
+		update TableB set Name = 'Mary Transaction 1' where Id = 1
+
+		commit tran
+		select 'Transaction Successful'
+	end try
+	begin catch
+		-- vaatab, kas see error on deadlocki oma
+		if(ERROR_NUMBER() = 1205)
+		begin 
+			select 'Deadlock. Transaction failed. Please try'
+		end
+
+		rollback
+	end catch
+end
+--esimeses serveris
+spTransaction1
+--teises serveris
+spTransaction2
+
+
+--teise serverisse kirjutame
+select count(*) from TableA
+delete from TableA where Id = 1
+truncate table TableA
+drop table TableA
